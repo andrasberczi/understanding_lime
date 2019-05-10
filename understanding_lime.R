@@ -1,42 +1,35 @@
-library(lime)
-library(data.table)
-library(magrittr)
-library(mlbench)
-library(caret)
-
-# linear regression -----------------------------------------------------
+source("global.R")
+seed <- 132
 
 data(Sacramento)
 apartments_dt <- copy(as.data.table(Sacramento))
 
-set.seed(132)
-train_index <- sample(1:nrow(apartments_dt), nrow(apartments_dt) * 0.3)
-train <- apartments_dt[train_index]
-test <- apartments_dt[-train_index]
+# tabular data ------------------------------------------------------------
 
-# model_lm <- train(price ~ beds + baths + sqft, data = train, method = "lm")
-model_lm <- train(price ~ ., data = train, method = "lm")
-summary(model_lm)
+# formula <- formula("price ~ beds + baths + sqft")
+formula <- formula("price ~ .")
+method <- "lm"
 
-# model_rf <- train(price ~ beds + baths + sqft, data = train, method = "rf")
-model_rf <- train(price ~ ., data = train, method = "rf")
-summary(model_rf)
+train <- createTrainSet(apartments_dt)
+model <- train(formula, data = train, method = method)
+summary(model)
 
-test_with_predictions <- copy(test) %>% 
-	.[, prediction_lm := predict(model_lm, newdata = test)] %>% 
-	.[, prediction_rf := predict(model_rf, newdata = test)]
+test_with_predictions <- createTestSet(apartments_dt) %>% 
+	.[, prediction := predict(model, newdata = .)]
 
-ggplot(test_with_predictions, aes(price, prediction_lm)) + geom_point()
-ggplot(test_with_predictions, aes(price, prediction_rf)) + geom_point()
+ggplot(test_with_predictions, aes(price, prediction)) + geom_point()
+RMSE(test_with_predictions$price, test_with_predictions$prediction)
 
-RMSE(test_with_predictions$price, test_with_predictions$prediction_lm)
-RMSE(test_with_predictions$price, test_with_predictions$prediction_rf)
+explainer <- lime(train[, -c("price")], model = model, bin_continuous = FALSE)
+set.seed(seed)
+explanation <- lime::explain(
+	test_with_predictions[123:125, -c("prediction", "price")], 
+	explainer = explainer, n_features = 6
+)
 
-lime_explainer <- lime(train[, -c("price")], model = model)
-
-lime_explanation <- lime::explain(test[123:133, -c("price")], explainer = lime_explainer, n_features = 3)
-plot_features(lime_explanation)
-plot_explanations(lime_explanation)
+test_with_predictions[123:125]
+plot_features(explanation)
+plot_explanations(explanation)
 
 # image example -----------------------------------------------------------
 
