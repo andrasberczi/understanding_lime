@@ -4,7 +4,7 @@ seed <- 132
 data(Sacramento)
 apartments_dt <- copy(as.data.table(Sacramento))
 
-# tabular data ------------------------------------------------------------
+# train model for tabular data --------------------------------------------
 
 formula <- formula("price ~ .")
 method <- "rf"
@@ -15,13 +15,15 @@ test <- createTestSet(apartments_dt)
 
 head(test)
 
-explainer <- lime(train[, -c("price")], model = model, bin_continuous = FALSE)
+# create explanations with LIME -------------------------------------------
 
-test[123]
+explainer <- lime::lime(train[, -c("price")], model = model, bin_continuous = FALSE)
+explainer
+
 set.seed(seed)
-explanation <- explain(
-	test[123, -c("price")], explainer = explainer, n_features = 3
+explanation <- lime::explain(
+	test[c(1, 415), -c("price")], explainer = explainer, n_features = 3
 )
+explanation
 
-plot_features(explanation)
-plot_explanations(explanation)
+lime::plot_features(explanation)
